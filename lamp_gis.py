@@ -20,7 +20,8 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
+from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, QSize
+
 from PyQt4.QtGui import QAction, QIcon
 from qgis.gui import QgsMessageBar
 # Initialize Qt resources from file resources.py 
@@ -30,6 +31,7 @@ from lamp_gis_dialog import LampGisDialog
 import os.path
 import mysql.connector
 from mysql.connector import errorcode
+from PyQt4.Qt import QColor
 
 class LampGis:
     """QGIS Plugin Implementation."""
@@ -220,6 +222,26 @@ class LampGis:
         self.dlg.infoText.appendPlainText(selectedLayer.renderer().type())
         self.dlg.infoText.appendPlainText("Width: {}".format(selectedLayer.width()))
         self.dlg.infoText.appendPlainText("Height: {}".format(selectedLayer.height()))
+        self.dlg.infoText.appendPlainText("providerType: {}".format(selectedLayer.providerType()))
+        
+        self.dlg.infoText.appendPlainText("----------------------")
+        
+        if selectedLayer.isValid():   
+            selectedLayer.reload()
+            image = selectedLayer.previewAsImage(QSize(selectedLayer.width()/10, selectedLayer.height()/10), 
+                                             QColor(0,0,0,0))
+        else:
+            self.iface.messageBar().pushMessage("Error", "Raster not loaded", 
+                                               level=QgsMessageBar.CRITICAL)
+            
+        self.dlg.infoText.appendPlainText("Byte Count: {}".format(image.byteCount()))
+        self.dlg.infoText.appendPlainText("Bytes per line: {}".format(image.bytesPerLine()))
+        self.dlg.infoText.appendPlainText("Depth: {}".format(image.depth()))
+        self.dlg.infoText.appendPlainText("dotsPerMeterX: {}".format(image.dotsPerMeterX()))
+        self.dlg.infoText.appendPlainText("dotsPerMeterY: {}".format(image.dotsPerMeterY()))
+        
+        image.save("image.jpg", "JPG", 50)
+        
 
 
     def run(self):
