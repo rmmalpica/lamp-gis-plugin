@@ -72,7 +72,7 @@ class LampGis:
         self.toolbar = self.iface.addToolBar(u'LampGis')
         self.toolbar.setObjectName(u'LampGis')
         
-        self.dlg.connectButton.clicked.connect(self.connectButtonClicked_handler)
+        #self.dlg.connectButton.clicked.connect(self.connectButtonClicked_handler)
         self.dlg.saveButton.clicked.connect(self.saveButtonClicked_handler)
 
     # noinspection PyMethodMayBeStatic
@@ -185,32 +185,32 @@ class LampGis:
         # remove the toolbar
         del self.toolbar
 
-    def connectButtonClicked_handler(self):
-        config = {
-            'user': self.dlg.userText.text(),
-            'password': self.dlg.passwordText.text(),
-            'host': self.dlg.hostText.text(),
-            'database': self.dlg.databaseText.text(),
-            'raise_on_warnings': True,
-            }
-
-        try:
-            
-            self.cnx = mysql.connector.connect(**config)
-            
-        except mysql.connector.Error as err:
-            if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-                self.iface.messageBar().pushMessage("Error", "Something is wrong with your user name or password", 
-                                               level=QgsMessageBar.CRITICAL)
-            elif err.errno == errorcode.ER_BAD_DB_ERROR:
-                self.iface.messageBar().pushMessage("Error", "Database does not exist", 
-                                               level=QgsMessageBar.CRITICAL)
-
-            else:
-                self.iface.messageBar().pushMessage("Error", "Error: {}".format(err), 
-                                               level=QgsMessageBar.CRITICAL)
-        else:
-            self.iface.messageBar().pushMessage("Info", "Connection Succeeded", level=QgsMessageBar.INFO)
+#     def connectButtonClicked_handler(self):
+#         config = {
+#             'user': self.dlg.userText.text(),
+#             'password': self.dlg.passwordText.text(),
+#             'host': self.dlg.hostText.text(),
+#             'database': self.dlg.databaseText.text(),
+#             'raise_on_warnings': True,
+#             }
+# 
+#         try:
+#             
+#             self.cnx = mysql.connector.connect(**config)
+#             
+#         except mysql.connector.Error as err:
+#             if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
+#                 self.iface.messageBar().pushMessage("Error", "Something is wrong with your user name or password", 
+#                                                level=QgsMessageBar.CRITICAL)
+#             elif err.errno == errorcode.ER_BAD_DB_ERROR:
+#                 self.iface.messageBar().pushMessage("Error", "Database does not exist", 
+#                                                level=QgsMessageBar.CRITICAL)
+# 
+#             else:
+#                 self.iface.messageBar().pushMessage("Error", "Error: {}".format(err), 
+#                                                level=QgsMessageBar.CRITICAL)
+#         else:
+#             self.iface.messageBar().pushMessage("Info", "Connection Succeeded", level=QgsMessageBar.INFO)
 
 
     def saveButtonClicked_handler(self):
@@ -226,8 +226,23 @@ class LampGis:
         
         self.dlg.infoText.appendPlainText("----------------------")
         
+        dataProvider = selectedLayer.dataProvider()        
+        self.dlg.infoText.appendPlainText("dataProvider.bandOffset: {}".format(dataProvider.bandOffset(1)))
+        self.dlg.infoText.appendPlainText("dataProvider.bandScale: {}".format(dataProvider.bandScale(1)))
+        self.dlg.infoText.appendPlainText("dataProvider.bandOffset: {}".format(dataProvider.bandOffset(2)))
+        self.dlg.infoText.appendPlainText("dataProvider.bandScale: {}".format(dataProvider.bandScale(2)))
+        self.dlg.infoText.appendPlainText("dataProvider.bandOffset: {}".format(dataProvider.bandOffset(3)))
+        self.dlg.infoText.appendPlainText("dataProvider.bandScale: {}".format(dataProvider.bandScale(3)))
+        
+        block1 = dataProvider.block(1, selectedLayer.extent(), selectedLayer.width(), selectedLayer.height())
+        color = block1.color(1,1)
+        self.dlg.infoText.appendPlainText("block1.color: {}".format(color))
+        #self.dlg.infoText.appendPlainText("block1.bits: {}".format(block1.bits()))
+        
+        self.dlg.infoText.appendPlainText("----------------------")
+        
         if selectedLayer.isValid():   
-            selectedLayer.reload()
+
             image = selectedLayer.previewAsImage(QSize(selectedLayer.width()/10, selectedLayer.height()/10), 
                                              QColor(0,0,0,0))
         else:
@@ -240,9 +255,8 @@ class LampGis:
         self.dlg.infoText.appendPlainText("dotsPerMeterX: {}".format(image.dotsPerMeterX()))
         self.dlg.infoText.appendPlainText("dotsPerMeterY: {}".format(image.dotsPerMeterY()))
         
-        image.save("image.jpg", "JPG", 50)
+        #image.save("image.tiff", "TIFF", 50)
         
-
 
     def run(self):
                         
