@@ -45,5 +45,6 @@ class LampGisDialog(QtGui.QDialog, FORM_CLASS):
 
         #Connectors
         self.saveButton.clicked.connect(self.ctl.saveButtonClicked_handler)
+        self.findFileButton.clicked.connect(self.ctl.findFileButtonClicked_handler)
 
 

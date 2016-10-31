@@ -21,8 +21,9 @@
  ***************************************************************************/
 """
 
-from PyQt4.Qt import QImage, qRgb, QPoint
-from qgis.core import QgsMessageLog
+from PyQt4.Qt import QImage, qRgb, QPoint, QFileInfo
+from PyQt4.QtGui import QFileDialog
+from qgis.core import QgsMessageLog, QgsRasterLayer
 from raster.util import LmpgRaster
 import logging
 
@@ -47,7 +48,10 @@ class LampGisDialogCtl():
             self.gui.layersComboBox.addItems(layer_list)
 
 
+    def findFileButtonClicked_handler(self):
 
+        filename = QFileDialog.getOpenFileName(self.gui, "Select input raster ", "", '*.*')
+        self.gui.fileNameText.setText(filename)
 #     def connectButtonClicked_handler(self):
 #         config = {
 #             'user': self.gui.userText.text(),
@@ -77,9 +81,16 @@ class LampGisDialogCtl():
 
     def saveButtonClicked_handler(self):
 
-        self.gui.infoText.appendPlainText("Connected")
-        selectedLayerIndex = self.gui.layersComboBox.currentIndex()
-        selectedLayer = self.layers[selectedLayerIndex]
+        if self.parent is not None:
+            selectedLayerIndex = self.gui.layersComboBox.currentIndex()
+            selectedLayer = self.layers[selectedLayerIndex]
+        else:
+            fileName = self.gui.fileNameText.text()
+            fileInfo = QFileInfo(fileName)
+            baseName = fileInfo.baseName()
+            selectedLayer = QgsRasterLayer(fileName, baseName)
+
+
         self.gui.infoText.setPlainText(selectedLayer.extent().toString())
         # self.gui.infoText.appendPlainText(selectedLayer.metadata())
         self.gui.infoText.appendPlainText(selectedLayer.renderer().type())
