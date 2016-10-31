@@ -20,25 +20,26 @@
  *                                                                         *
  ***************************************************************************/
 """
-from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication, QSize
 
+from PyQt4.QtCore import QSettings, QTranslator, qVersion, QCoreApplication
 from PyQt4.QtGui import QAction, QIcon
-from qgis.gui import QgsMessageBar
+from qgis.gui import QgsMessageBar 
+from qgis.core import QgsRectangle
+import logging
+import os.path
+
 # Initialize Qt resources from file resources.py 
 import resources
 # Import the code for the dialog
 from lamp_gis_dialog import LampGisDialog
-import os.path
-import mysql.connector
-from mysql.connector import errorcode
-from PyQt4.Qt import QColor
+
 
 class LampGis:
     """QGIS Plugin Implementation."""
 
     def __init__(self, iface):
         """Constructor.
-
+ 
         :param iface: An interface instance that will be passed to this class
             which provides the hook by which you can manipulate the QGIS
             application at run time.
@@ -63,7 +64,7 @@ class LampGis:
                 QCoreApplication.installTranslator(self.translator)
 
         # Create the dialog (after translation) and keep reference
-        self.dlg = LampGisDialog()
+        self.dlg = LampGisDialog(self)
 
         # Declare instance attributes
         self.actions = []
@@ -71,9 +72,10 @@ class LampGis:
         # TODO: We are going to let the user set this up in a future iteration
         self.toolbar = self.iface.addToolBar(u'LampGis')
         self.toolbar.setObjectName(u'LampGis')
-        
-        #self.dlg.connectButton.clicked.connect(self.connectButtonClicked_handler)
-        self.dlg.saveButton.clicked.connect(self.saveButtonClicked_handler)
+
+        logging.basicConfig(filename=self.plugin_dir + '/log/lampgis.log',
+                            level=logging.INFO,
+                            format='(%(levelname)s)%(asctime)s %(message)s')
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -185,88 +187,9 @@ class LampGis:
         # remove the toolbar
         del self.toolbar
 
-#     def connectButtonClicked_handler(self):
-#         config = {
-#             'user': self.dlg.userText.text(),
-#             'password': self.dlg.passwordText.text(),
-#             'host': self.dlg.hostText.text(),
-#             'database': self.dlg.databaseText.text(),
-#             'raise_on_warnings': True,
-#             }
-# 
-#         try:
-#             
-#             self.cnx = mysql.connector.connect(**config)
-#             
-#         except mysql.connector.Error as err:
-#             if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-#                 self.iface.messageBar().pushMessage("Error", "Something is wrong with your user name or password", 
-#                                                level=QgsMessageBar.CRITICAL)
-#             elif err.errno == errorcode.ER_BAD_DB_ERROR:
-#                 self.iface.messageBar().pushMessage("Error", "Database does not exist", 
-#                                                level=QgsMessageBar.CRITICAL)
-# 
-#             else:
-#                 self.iface.messageBar().pushMessage("Error", "Error: {}".format(err), 
-#                                                level=QgsMessageBar.CRITICAL)
-#         else:
-#             self.iface.messageBar().pushMessage("Info", "Connection Succeeded", level=QgsMessageBar.INFO)
-
-
-    def saveButtonClicked_handler(self):
-        
-        selectedLayerIndex = self.dlg.layersComboBox.currentIndex()
-        selectedLayer = self.layers[selectedLayerIndex]
-        self.dlg.infoText.setPlainText(selectedLayer.extent().toString())
-        self.dlg.infoText.appendPlainText(selectedLayer.metadata())
-        self.dlg.infoText.appendPlainText(selectedLayer.renderer().type())
-        self.dlg.infoText.appendPlainText("Width: {}".format(selectedLayer.width()))
-        self.dlg.infoText.appendPlainText("Height: {}".format(selectedLayer.height()))
-        self.dlg.infoText.appendPlainText("providerType: {}".format(selectedLayer.providerType()))
-        
-        self.dlg.infoText.appendPlainText("----------------------")
-        
-        dataProvider = selectedLayer.dataProvider()        
-        self.dlg.infoText.appendPlainText("dataProvider.bandOffset: {}".format(dataProvider.bandOffset(1)))
-        self.dlg.infoText.appendPlainText("dataProvider.bandScale: {}".format(dataProvider.bandScale(1)))
-        self.dlg.infoText.appendPlainText("dataProvider.bandOffset: {}".format(dataProvider.bandOffset(2)))
-        self.dlg.infoText.appendPlainText("dataProvider.bandScale: {}".format(dataProvider.bandScale(2)))
-        self.dlg.infoText.appendPlainText("dataProvider.bandOffset: {}".format(dataProvider.bandOffset(3)))
-        self.dlg.infoText.appendPlainText("dataProvider.bandScale: {}".format(dataProvider.bandScale(3)))
-        
-        block1 = dataProvider.block(1, selectedLayer.extent(), selectedLayer.width(), selectedLayer.height())
-        color = block1.color(1,1)
-        self.dlg.infoText.appendPlainText("block1.color: {}".format(color))
-        #self.dlg.infoText.appendPlainText("block1.bits: {}".format(block1.bits()))
-        
-        self.dlg.infoText.appendPlainText("----------------------")
-        
-        if selectedLayer.isValid():   
-
-            image = selectedLayer.previewAsImage(QSize(selectedLayer.width()/10, selectedLayer.height()/10), 
-                                             QColor(0,0,0,0))
-        else:
-            self.iface.messageBar().pushMessage("Error", "Raster not loaded", 
-                                               level=QgsMessageBar.CRITICAL)
-            
-        self.dlg.infoText.appendPlainText("Byte Count: {}".format(image.byteCount()))
-        self.dlg.infoText.appendPlainText("Bytes per line: {}".format(image.bytesPerLine()))
-        self.dlg.infoText.appendPlainText("Depth: {}".format(image.depth()))
-        self.dlg.infoText.appendPlainText("dotsPerMeterX: {}".format(image.dotsPerMeterX()))
-        self.dlg.infoText.appendPlainText("dotsPerMeterY: {}".format(image.dotsPerMeterY()))
-        
-        #image.save("image.tiff", "TIFF", 50)
-        
 
     def run(self):
-                        
-        self.layers = self.iface.legendInterface().layers()
-        layer_list = []
-        for layer in self.layers:
-            layer_list.append(layer.name())
- 
-        self.dlg.layersComboBox.clear()
-        self.dlg.layersComboBox.addItems(layer_list)
+
         """Run method that performs all the real work"""
         # show the dialog
         self.dlg.show()
