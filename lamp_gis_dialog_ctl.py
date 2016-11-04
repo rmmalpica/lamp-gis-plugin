@@ -7,7 +7,7 @@
                              -------------------
         begin                : 2016-10-31
         git sha              : $Format:%H$
-        copyright            : (C) 2016 by RaÃºl Malpica
+        copyright            : (C) 2016 by Raúl Malpica
         email                : raul.malpica@gmail.com
  ***************************************************************************/
 
@@ -21,21 +21,20 @@
  ***************************************************************************/
 """
 
-from PyQt4.Qt import QImage, qRgb, QPoint, QFileInfo
+from PyQt4.Qt import QFileInfo
 from PyQt4.QtGui import QFileDialog
 from qgis.core import QgsMessageLog, QgsRasterLayer
-from raster.util import LmpgRaster
+from raster import LmpgRaster
+import os.path
 import logging
 
+
 class LampGisDialogCtl():
+
     def __init__(self, gui, parent=None):
         """Constructor."""
         self.gui = gui
         self.parent = parent
-
-        self.initGui()
-
-    def initGui(self):
 
         self.gui.layersComboBox.clear()
 
@@ -81,13 +80,17 @@ class LampGisDialogCtl():
 
     def saveButtonClicked_handler(self):
 
+        selectedLayerName = ""
+
         if self.parent is not None:
             selectedLayerIndex = self.gui.layersComboBox.currentIndex()
             selectedLayer = self.layers[selectedLayerIndex]
+            selectedLayerName = self.layers[selectedLayerIndex].name()
         else:
             fileName = self.gui.fileNameText.text()
             fileInfo = QFileInfo(fileName)
             baseName = fileInfo.baseName()
+            selectedLayerName = baseName
             selectedLayer = QgsRasterLayer(fileName, baseName)
 
 
@@ -121,82 +124,7 @@ class LampGisDialogCtl():
         self.gui.infoText.appendPlainText("crs.geographicCRSAuthId : " + crs.geographicCRSAuthId())
         self.gui.infoText.appendPlainText("crs.mapUnits: {}".format(crs.mapUnits()))
 
-        lmpgRaster = LmpgRaster(selectedLayer)
-        blocks = lmpgRaster.splitIntoBlocks()
-
-        # if not dataProvider.hasStatistics(1):
-        statistics = dataProvider.bandStatistics(1)
-
-        # image = QImage(selectedLayer.width(), selectedLayer.height(), QImage.Format_ARGB32)
-
-        count = 0
-        countError = 0
-
-        for y in range(len(blocks)):
-            row = blocks[y]
-            for x in range(len(row)):
-                rasterBlock = row[x]
-                extent = rasterBlock.extent
-                width = rasterBlock.width
-                height = rasterBlock.height
-                block = dataProvider.block(1, extent, width, height)
-                QgsMessageLog.logMessage("block extent: " + extent.toString(), "lamp-gis")
-                image = QImage(block.width(), block.height(), QImage.Format_ARGB32)
-
-                for y2 in range(block.height()):
-                    for x2 in range(block.width()):
-                        value = block.value(y2, x2)
-                        imageValue = (value - statistics.minimumValue) * (
-                            255 / (statistics.maximumValue - statistics.minimumValue))
-
-                        if value == -999 or value == 0:
-                            imageValue = 0
-                        else:
-                            message = "x: {}".format(x2) + " y: {}".format(y2) + " value: {}".format(
-                                value) + " imageValue: {}".format(imageValue)
-                            logging.info(message)
-
-                        if imageValue > 0 and imageValue < 256:
-                            count += 1
-                            image.setPixel(QPoint(x2, y2), qRgb(int(imageValue), int(imageValue), int(imageValue)))
-                        else:
-                            image.setPixel(QPoint(x2, y2), qRgb(0, 0, 0))
-                            countError += 1
-                            message = "Excluded: {}".format(imageValue)
-                            logging.info(message)
-
-                saved = image.save("********************image{}_{}.png".format(y, x), "PNG")
-                QgsMessageLog.logMessage("image_{}".format(y) + "{}".format(x) + " saved: {}".format(saved))
+        lmpgRaster = LmpgRaster(selectedLayer, selectedLayerName)
+        lmpgRaster.upload("http://localhost:8080/LampGis/index.php")
 
         self.gui.infoText.appendPlainText("----------------------")
-        self.gui.infoText.appendPlainText("count: {}".format(count))
-        self.gui.infoText.appendPlainText("countError: {}".format(countError))
-
-    # rows = selectedLayer.height()
-    # cols = selectedLayer.width()
-    #
-    # block = dataProvider.block(1, selectedLayer.extent(), selectedLayer.width(), selectedLayer.height())
-    #
-    # self.gui.infoText.appendPlainText("block is valid: {}".format(block.isValid()))
-    #
-    # for x2 in range(cols):
-    #     for y2 in range(rows):
-    #         value = block.value(y2, x2)
-    #         #message = "x: {}".format(x2) + " y: {}".format(y2) + " value: {}".format(value)
-    #         #logging.debug(message)
-    #         imageValue = (value - statistics.minimumValue) * (255 / (statistics.maximumValue - statistics.minimumValue))
-    #
-    #         if value == -999 or value == 0:
-    #             imageValue = 0
-    #
-    #         if imageValue > 0 and imageValue < 256:
-    #             count += 1
-    #             image.setPixel(QPoint(x2, y2), qRgb(int(imageValue), int(imageValue), int(imageValue)))
-    #         else:
-    #             image.setPixel(QPoint(x2, y2), qRgb(0, 0, 0))
-    #             countError += 1
-    #             message = "Excluded: {}".format(imageValue)
-    #             logging.debug(message)
-    #
-    # saved = image.save("D:\\image.png", "PNG")
-    # self.gui.infoText.appendPlainText("image saved: {}".format(saved))

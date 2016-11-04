@@ -7,7 +7,7 @@
                              -------------------
         begin                : 2016-09-12
         git sha              : $Format:%H$
-        copyright            : (C) 2016 by RaÃºl Malpica
+        copyright            : (C) 2016 by Raúl Malpica
         email                : raul.malpica@gmail.com
  ***************************************************************************/
 

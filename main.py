@@ -1,9 +1,13 @@
 from qgis.core import *
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
-import os, os.path, sys
-import lamp_gis
+import os.path
 import lamp_gis_dialog
+import logging
+
+logging.basicConfig(filename=os.path.dirname(__file__) + '/log/lampgis_standalone.log',
+                            level=logging.INFO,
+                            format='(%(levelname)s)%(asctime)s %(message)s')
 
 class MapExplorer(QMainWindow):
     def __init__(self):
