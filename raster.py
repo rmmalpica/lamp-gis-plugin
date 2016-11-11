@@ -21,12 +21,12 @@
  ***************************************************************************/
 """
 from PyQt4.Qt import QImage, qRgba, QPoint
-from qgis.core import QgsRectangle
+from qgis.core import QgsRectangle, QgsRaster
 import os.path
 import logging
 import gzip
 import requests
-import time
+
 
 
 
@@ -164,13 +164,29 @@ class LmpgRaster:
         else:
             data["noDataValue"] = ""
 
+        statistics = dataProvider.bandStatistics(1)
+
+        data["stat_max"] = statistics.maximumValue
+        data["stat_min"] = statistics.minimumValue
+        data["stat_mean"] = statistics.mean
+        data["stat_std_dev"] = statistics.stdDev
+
+        extent = dataProvider.extent()
+        data["extent"] = extent.asWktPolygon()
+
         return data
+
 
     def upload(self, url):
 
         blocks = self._splitIntoBlocks()
         dataProvider = self.qgsRasterLayer.dataProvider()
         statistics = dataProvider.bandStatistics(1)
+
+        if not dataProvider.hasPyramids():
+
+            pyramidList = dataProvider.buildPyramidList()
+            pyramidResult = dataProvider.buildPyramids(pyramidList)
 
         data = self._getRasterData()
         data["command"] = "create_raster_layer"
@@ -185,6 +201,20 @@ class LmpgRaster:
                 width = rasterBlock.width
                 height = rasterBlock.height
                 block = dataProvider.block(1, extent, width, height)
+
+                blockData = dict()
+                blockData["command"] = "add_raster_layer_block"
+                blockData["id"] = id
+                blockData["name"] = self.name
+                blockData["xblock"] = x
+                blockData["yblock"] = y
+                blockData["width"] = block.width()
+                blockData["height"] = block.height()
+                blockData["xmin"] = extent.xMinimum()
+                blockData["ymin"] = extent.yMinimum()
+                blockData["xmax"] = extent.xMaximum()
+                blockData["ymax"] = extent.yMaximum()
+                blockData["extent"] = extent.asWktPolygon()
 
                 logging.info("block ({},{}) extent: ".format(x, y) + extent.toString())
 
@@ -215,4 +245,9 @@ class LmpgRaster:
 
                 files = {'dataFile': open(self.tmpPath + "image{}_{}.gz".format(y, x), 'rb')}
                 files['imageFile'] = open(self.tmpPath + "image{}_{}.png".format(y, x), 'rb')
-                r = requests.post(url, data=data, files=files)
+                r = requests.post(url, data=blockData, files=files)
+
+                files['dataFile'].close()
+                files['imageFile'].close()
+                os.remove(self.tmpPath + "image{}_{}.png".format(y, x))
+                os.remove(self.tmpPath + "image{}_{}.gz".format(y, x))
