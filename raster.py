@@ -61,16 +61,12 @@ class LmpgRaster:
         self.tmpPath = os.path.dirname(__file__)+"/tmp/"
 
 
-    def _splitIntoBlocks(self):
+    def _splitIntoBlocks(self, width, height, extent):
 
         MAX_WIDTH = 1000
-        dataProvider = self.qgsRasterLayer.dataProvider()
 
-        width = self.qgsRasterLayer.width()
-        height = self.qgsRasterLayer.height()
         xRes = self.qgsRasterLayer.rasterUnitsPerPixelX()
         yRes = self.qgsRasterLayer.rasterUnitsPerPixelY()
-        extent = dataProvider.extent()
 
         blocks = []
         MAX_HEIGHT = (float(height) / float(width)) * MAX_WIDTH
@@ -176,22 +172,18 @@ class LmpgRaster:
 
         return data
 
+    def _selectPyramids(self, pyramidList):
 
-    def upload(self, url):
+        for i in range(len(pyramidList)):
 
-        blocks = self._splitIntoBlocks()
-        dataProvider = self.qgsRasterLayer.dataProvider()
+            pyramid = pyramidList[i]
+
+            if not pyramid.exists and pyramid.xDim > 100:
+                pyramid.build = True
+
+    def _uploadBlocks(self, url, dataProvider, blocks, id, pyramidLevel=1):
+
         statistics = dataProvider.bandStatistics(1)
-
-        if not dataProvider.hasPyramids():
-
-            pyramidList = dataProvider.buildPyramidList()
-            pyramidResult = dataProvider.buildPyramids(pyramidList)
-
-        data = self._getRasterData()
-        data["command"] = "create_raster_layer"
-
-        id = requests.post(url, data=data)
 
         for y in range(len(blocks)):
             row = blocks[y]
@@ -215,6 +207,7 @@ class LmpgRaster:
                 blockData["xmax"] = extent.xMaximum()
                 blockData["ymax"] = extent.yMaximum()
                 blockData["extent"] = extent.asWktPolygon()
+                blockData["level"] = pyramidLevel
 
                 logging.info("block ({},{}) extent: ".format(x, y) + extent.toString())
 
@@ -251,3 +244,32 @@ class LmpgRaster:
                 files['imageFile'].close()
                 os.remove(self.tmpPath + "image{}_{}.png".format(y, x))
                 os.remove(self.tmpPath + "image{}_{}.gz".format(y, x))
+
+
+    def upload(self, url):
+
+        dataProvider = self.qgsRasterLayer.dataProvider()
+        width = self.qgsRasterLayer.width()
+        height = self.qgsRasterLayer.height()
+        extent = dataProvider.extent()
+        blocks = self._splitIntoBlocks(width, height, extent)
+        pyramidList = dataProvider.buildPyramidList()
+
+        data = self._getRasterData()
+        data["command"] = "create_raster_layer"
+
+        id = requests.post(url, data=data)
+
+        self._uploadBlocks(url, dataProvider, blocks, id.content)
+
+        if not dataProvider.hasPyramids():
+            self._selectPyramids(pyramidList)
+            dataProvider.buildPyramids(pyramidList, "AVERAGE")
+
+        for i in range(len(pyramidList)):
+            pyramid = pyramidList[i]
+            blocks = self._splitIntoBlocks(pyramid.xDim, pyramid.yDim, dataProvider.extent())
+            if pyramid.exists:
+                self._uploadBlocks(url, dataProvider, blocks, id.content, pyramid.level)
+
+
